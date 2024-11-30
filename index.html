@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <style>
+        /* 所有CSS样式保持不变 */
         body {
             font-family: "Microsoft YaHei", sans-serif;
             margin: 0;
@@ -327,294 +328,123 @@
             </ul>
         </aside>
     </div>
-
     <script>
-        let posts = [];
-        let currentTag = null;
-        let currentYear = null;
+    let posts = [];
+    let currentTag = null;
+    let currentYear = null;
 
-        const monthNames = {
-            '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
-            '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
-            '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
-        };
+    const monthNames = {
+        '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+        '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+        '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+    };
 
-        // 从GitHub加载文章列表
-        async function loadPosts() {
-            try {
-                const owner = 'CosmoDreamist';
-                const repo = 'blog';
-                const path = 'posts';
+    async function loadPosts() {
+        try {
+            const owner = 'CosmoDreamist';
+            const repo = 'blog';
+            const path = 'posts';
 
-                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
-                const files = await response.json();
-                
-                posts = await Promise.all(files
-                    .filter(file => file.name.endsWith('.md'))
-                    .map(async file => {
-                        const content = await fetch(file.download_url);
-                        const text = await content.text();
+            console.log('Fetching posts from:', `https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+            
+            const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const files = await response.json();
+            console.log('Files found:', files);
+
+            if (!Array.isArray(files)) {
+                throw new Error('No files found or invalid response');
+            }
+
+            posts = await Promise.all(files
+                .filter(file => file.name.endsWith('.md'))
+                .map(async file => {
+                    console.log('Processing file:', file.name);
+                    const content = await fetch(file.download_url);
+                    const text = await content.text();
+                    
+                    try {
                         const [frontMatter, ...contentParts] = text.split('---').filter(Boolean);
-                        const metadata = jsyaml.load(frontMatter);
+                        const metadata = jsyaml.load(frontMatter.trim());
                         
+                        // 确保日期是字符串格式
+                        const date = metadata.date ? metadata.date.toString() : '';
+                        if (!date || !metadata.title) {
+                            throw new Error(`Missing required metadata in ${file.name}`);
+                        }
+
+                        // 确保日期格式为 YYYY-MM-DD
+                        const formattedDate = new Date(date).toISOString().split('T')[0];
+
                         return {
-                            date: metadata.date,
+                            date: formattedDate,
                             title: metadata.title,
                             tags: metadata.tags || [],
                             content: contentParts.join('---'),
                             url: file.download_url
                         };
-                    }));
-
-                // 更新标签列表
-                updateTagList();
-                
-                // 初始化显示
-                if (posts.length > 0) {
-                    const initialYear = posts[0].date.split('-')[0];
-                    updateYearTitle(initialYear);
-                    updatePosts();
-                    updateTimeline();
-                    addScrollListener();
-                }
-
-            } catch (error) {
-                console.error('Error loading posts:', error);
-                document.getElementById('posts-container').innerHTML = 
-                    '<p>Error loading posts. Please check the console for details.</p>';
-            }
-        }
-
-        // 更新标签列表
-        function updateTagList() {
-            const tags = new Set();
-            posts.forEach(post => {
-                post.tags.forEach(tag => tags.add(tag));
-            });
-
-            const tagList = document.querySelector('.tag-list');
-            tagList.innerHTML = Array.from(tags)
-                .map(tag => `<li>${tag}</li>`)
-                .join('');
-
-            // 重新添加标签点击事件
-            document.querySelectorAll('.tag-list li').forEach(tag => {
-                tag.addEventListener('click', () => {
-                    const tagText = tag.textContent;
-                    if (currentTag === tagText) {
-                        currentTag = null;
-                        tag.classList.remove('active');
-                    } else {
-                        document.querySelectorAll('.tag-list li').forEach(t => {
-                            t.classList.remove('active');
-                        });
-                        currentTag = tagText;
-                        tag.classList.add('active');
+                    } catch (e) {
+                        console.error(`Error processing ${file.name}:`, e);
+                        throw e;
                     }
-                    
-                    const filteredPosts = currentTag ? 
-                        posts.filter(post => post.tags.includes(currentTag)) : 
-                        posts;
-                    
-                    if (filteredPosts.length > 0) {
-                        const year = filteredPosts[0].date.split('-')[0];
-                        updateYearTitle(year);
-                    }
-                    
-                    updatePosts(filteredPosts);
-                    updateTimeline();
-                    handle.style.top = '0px';
-                });
-            });
-        }
+                }));
 
-        // 其他函数保持不变
-        function updatePosts(filteredPosts = posts) {
-            if (currentTag) {
-                filteredPosts = filteredPosts.filter(post => post.tags.includes(currentTag));
+            console.log('Processed posts:', posts);
+
+            if (posts.length === 0) {
+                throw new Error('No valid posts found');
             }
 
-            if (filteredPosts.length > 0) {
-                const latestYear = filteredPosts[0].date.split('-')[0];
-                updateYearTitle(latestYear);
-            }
+            // 按日期排序
+            posts.sort((a, b) => b.date.localeCompare(a.date));
 
-            const container = document.getElementById('posts-container');
-            container.innerHTML = filteredPosts
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .map(post => {
-                    const [year, month, day] = post.date.split('-');
-                    const formattedDate = `${monthNames[month]} ${day}`;
-                    return `
-                        <div class="post-item" data-date="${post.date}" data-url="${post.url}">
-                            <span class="post-date">${formattedDate}</span>
-                            <span class="post-title">
-                                ${post.title}
-                                ${post.tags.map(tag => `
-                                    <span class="post-tag">${tag}</span>
-                                `).join('')}
-                            </span>
-                        </div>
-                    `;
-                }).join('');
+            updateTagList();
+            const initialYear = posts[0].date.split('-')[0];
+            updateYearTitle(initialYear);
+            updatePosts();
+            updateTimeline();
+            addScrollListener();
 
-            // 添加文章点击事件
-            document.querySelectorAll('.post-item').forEach(item => {
-                item.addEventListener('click', async () => {
-                    const url = item.dataset.url;
-                    try {
-                        const response = await fetch(url);
-                        const text = await response.text();
-                        const [frontMatter, ...contentParts] = text.split('---').filter(Boolean);
-                        const content = contentParts.join('---');
-                        
-                        // 这里可以添加显示文章内容的逻辑
-                        console.log('Article content:', marked.parse(content));
-                    } catch (error) {
-                        console.error('Error loading article:', error);
-                    }
-                });
-            });
+        } catch (error) {
+            console.error('Error loading posts:', error);
+            console.error('Error details:', error.stack);
+            document.getElementById('posts-container').innerHTML = 
+                `<p>Error loading posts: ${error.message}</p>`;
         }
+    }
 
-        function updateYearTitle(year) {
-            const yearTitle = document.getElementById('year-title');
-            if (currentYear !== year) {
-                currentYear = year;
-                yearTitle.textContent = year;
-            }
-        }
-
-        function updateTimeline() {
-            const timeline = document.getElementById('timeline');
-            let filteredPosts = posts;
-            if (currentTag) {
-                filteredPosts = posts.filter(post => post.tags.includes(currentTag));
-            }
-
-            const dateGroups = filteredPosts.reduce((groups, post) => {
-                const [year, month, day] = post.date.split('-');
-                if (!groups[year]) groups[year] = {};
-                if (!groups[year][month]) groups[year][month] = [];
-                groups[year][month].push(day);
-                return groups;
-            }, {});
-
-            const timelineHTML = Object.entries(dateGroups)
-                .sort(([a], [b]) => b.localeCompare(a))
-                .map(([year, months]) => `
-                    <div class="timeline-year">
-                        ${year}
-                        ${Object.entries(months)
-                            .sort(([a], [b]) => b.localeCompare(a))
-                            .map(([month, days]) => `
-                                <div class="timeline-month">
-                                    ${monthNames[month]}
-                                    ${days
-                                        .sort((a, b) => b.localeCompare(a))
-                                        .map(day => `
-                                            <div class="timeline-date" data-date="${year}-${month}-${day}">
-                                                ${day}
-                                            </div>
-                                        `).join('')}
-                                </div>
-                            `).join('')}
-                    </div>
-                `).join('');
-
-            timeline.innerHTML = timelineHTML;
-
-            document.querySelectorAll('.timeline-date').forEach(dateEl => {
-                dateEl.addEventListener('click', () => {
-                    const selectedDate = dateEl.dataset.date;
-                    const selectedYear = selectedDate.split('-')[0];
-                    
-                    let filteredPosts = posts.filter(post => post.date <= selectedDate);
-                    if (currentTag) {
-                        filteredPosts = filteredPosts.filter(post => post.tags.includes(currentTag));
-                    }
-                    
-                    updatePosts(filteredPosts);
-                    updateYearTitle(selectedYear);
-                    
-                    document.querySelectorAll('.timeline-date').forEach(el => {
-                        el.classList.remove('active');
-                    });
-                    dateEl.classList.add('active');
-
-                    const allPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
-                    const index = allPosts.findIndex(post => post.date === selectedDate);
-                    const maxY = slider.offsetHeight - handle.offsetHeight;
-                    const newY = (index / allPosts.length) * maxY;
-                    handle.style.top = `${newY}px`;
-                });
-            });
-        }
-
-        function addScrollListener() {
-            const postsContainer = document.getElementById('posts-container');
-            let scrollTimeout;
-
-            postsContainer.addEventListener('scroll', () => {
-                if (scrollTimeout) {
-                    clearTimeout(scrollTimeout);
-                }
-
-                scrollTimeout = setTimeout(() => {
-                    const postItems = postsContainer.querySelectorAll('.post-item');
-                    const containerRect = postsContainer.getBoundingClientRect();
-                    
-                    let closestPost = null;
-                    let minDistance = Infinity;
-                    
-                    postItems.forEach(post => {
-                        const rect = post.getBoundingClientRect();
-                        const distance = Math.abs(rect.top - containerRect.top);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestPost = post;
-                        }
-                    });
-
-                    if (closestPost) {
-                        const date = closestPost.dataset.date;
-                        const year = date.split('-')[0];
-                        updateYearTitle(year);
-
-                        document.querySelectorAll('.timeline-date').forEach(el => {
-                            el.classList.toggle('active', el.dataset.date === date);
-                        });
-
-                        const allPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
-                        const index = allPosts.findIndex(post => post.date === date);
-                        const maxY = slider.offsetHeight - handle.offsetHeight;
-                        const newY = (index / allPosts.length) * maxY;
-                        handle.style.top = `${newY}px`;
-                    }
-                }, 100);
-            });
-        }
-
-        const handle = document.getElementById('timelineHandle');
-        const slider = document.querySelector('.timeline-slider');
-        let isDragging = false;
-
-        handle.addEventListener('mousedown', (e) => {
-            isDragging = true;
+    function updateTagList() {
+        const tags = new Set();
+        posts.forEach(post => {
+            post.tags.forEach(tag => tags.add(tag));
         });
 
-        document.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                const sliderRect = slider.getBoundingClientRect();
-                const y = e.clientY - sliderRect.top;
-                const maxY = slider.offsetHeight - handle.offsetHeight;
-                const newY = Math.max(0, Math.min(y, maxY));
-                handle.style.top = `${newY}px`;
+        const tagList = document.querySelector('.tag-list');
+        tagList.innerHTML = Array.from(tags)
+            .map(tag => `<li>${tag}</li>`)
+            .join('');
+
+        document.querySelectorAll('.tag-list li').forEach(tag => {
+            tag.addEventListener('click', () => {
+                const tagText = tag.textContent;
+                if (currentTag === tagText) {
+                    currentTag = null;
+                    tag.classList.remove('active');
+                } else {
+                    document.querySelectorAll('.tag-list li').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    currentTag = tagText;
+                    tag.classList.add('active');
+                }
                 
-                const percentage = newY / maxY;
-                let filteredPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
-                const index = Math.floor(percentage * filteredPosts.length);
-                filteredPosts = filteredPosts.slice(index);
+                const filteredPosts = currentTag ? 
+                    posts.filter(post => post.tags.includes(currentTag)) : 
+                    posts;
                 
                 if (filteredPosts.length > 0) {
                     const year = filteredPosts[0].date.split('-')[0];
@@ -622,20 +452,217 @@
                 }
                 
                 updatePosts(filteredPosts);
+                updateTimeline();
+                handle.style.top = '0px';
+            });
+        });
+    }
 
-                const activeDate = filteredPosts[0]?.date;
+    function updatePosts(filteredPosts = posts) {
+        if (currentTag) {
+            filteredPosts = filteredPosts.filter(post => post.tags.includes(currentTag));
+        }
+
+        if (filteredPosts.length > 0) {
+            const latestYear = filteredPosts[0].date.split('-')[0];
+            updateYearTitle(latestYear);
+        }
+
+        const container = document.getElementById('posts-container');
+        container.innerHTML = filteredPosts
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .map(post => {
+                const [year, month, day] = post.date.split('-');
+                const formattedDate = `${monthNames[month]} ${day}`;
+                return `
+                    <div class="post-item" data-date="${post.date}" data-url="${post.url}">
+                        <span class="post-date">${formattedDate}</span>
+                        <span class="post-title">
+                            ${post.title}
+                            ${post.tags.map(tag => `
+                                <span class="post-tag">${tag}</span>
+                            `).join('')}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
+        document.querySelectorAll('.post-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const url = item.dataset.url;
+                try {
+                    const response = await fetch(url);
+                    const text = await response.text();
+                    const [frontMatter, ...contentParts] = text.split('---').filter(Boolean);
+                    const content = contentParts.join('---');
+                    
+                    console.log('Article content:', marked.parse(content));
+                } catch (error) {
+                    console.error('Error loading article:', error);
+                }
+            });
+        });
+    }
+
+    function updateYearTitle(year) {
+        const yearTitle = document.getElementById('year-title');
+        if (currentYear !== year) {
+            currentYear = year;
+            yearTitle.textContent = year;
+        }
+    }
+
+    function updateTimeline() {
+        const timeline = document.getElementById('timeline');
+        let filteredPosts = posts;
+        if (currentTag) {
+            filteredPosts = posts.filter(post => post.tags.includes(currentTag));
+        }
+
+        const dateGroups = filteredPosts.reduce((groups, post) => {
+            const [year, month, day] = post.date.split('-');
+            if (!groups[year]) groups[year] = {};
+            if (!groups[year][month]) groups[year][month] = [];
+            groups[year][month].push(day);
+            return groups;
+        }, {});
+
+        const timelineHTML = Object.entries(dateGroups)
+            .sort(([a], [b]) => b.localeCompare(a))
+            .map(([year, months]) => `
+                <div class="timeline-year">
+                    ${year}
+                    ${Object.entries(months)
+                        .sort(([a], [b]) => b.localeCompare(a))
+                        .map(([month, days]) => `
+                            <div class="timeline-month">
+                                ${monthNames[month]}
+                                ${days
+                                    .sort((a, b) => b.localeCompare(a))
+                                    .map(day => `
+                                        <div class="timeline-date" data-date="${year}-${month}-${day}">
+                                            ${day}
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        `).join('')}
+                </div>
+            `).join('');
+
+        timeline.innerHTML = timelineHTML;
+
+        document.querySelectorAll('.timeline-date').forEach(dateEl => {
+            dateEl.addEventListener('click', () => {
+                const selectedDate = dateEl.dataset.date;
+                const selectedYear = selectedDate.split('-')[0];
+                
+                let filteredPosts = posts.filter(post => post.date <= selectedDate);
+                if (currentTag) {
+                    filteredPosts = filteredPosts.filter(post => post.tags.includes(currentTag));
+                }
+                
+                updatePosts(filteredPosts);
+                updateYearTitle(selectedYear);
+                
                 document.querySelectorAll('.timeline-date').forEach(el => {
-                    el.classList.toggle('active', el.dataset.date === activeDate);
+                    el.classList.remove('active');
                 });
+                dateEl.classList.add('active');
+
+                const allPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
+                const index = allPosts.findIndex(post => post.date === selectedDate);
+                const maxY = slider.offsetHeight - handle.offsetHeight;
+                const newY = (index / allPosts.length) * maxY;
+                handle.style.top = `${newY}px`;
+            });
+        });
+    }
+
+    function addScrollListener() {
+        const postsContainer = document.getElementById('posts-container');
+        let scrollTimeout;
+
+        postsContainer.addEventListener('scroll', () => {
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
             }
-        });
 
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
+            scrollTimeout = setTimeout(() => {
+                const postItems = postsContainer.querySelectorAll('.post-item');
+                const containerRect = postsContainer.getBoundingClientRect();
+                
+                let closestPost = null;
+                let minDistance = Infinity;
+                
+                postItems.forEach(post => {
+                    const rect = post.getBoundingClientRect();
+                    const distance = Math.abs(rect.top - containerRect.top);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestPost = post;
+                    }
+                });
 
-        // 初始化
-        loadPosts();
-    </script>
+                if (closestPost) {
+                    const date = closestPost.dataset.date;
+                    const year = date.split('-')[0];
+                    updateYearTitle(year);
+
+                    document.querySelectorAll('.timeline-date').forEach(el => {
+                        el.classList.toggle('active', el.dataset.date === date);
+                    });
+
+                    const allPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
+                    const index = allPosts.findIndex(post => post.date === date);
+                    const maxY = slider.offsetHeight - handle.offsetHeight;
+                    const newY = (index / allPosts.length) * maxY;
+                    handle.style.top = `${newY}px`;
+                }
+            }, 100);
+        });
+    }
+
+    const handle = document.getElementById('timelineHandle');
+    const slider = document.querySelector('.timeline-slider');
+    let isDragging = false;
+
+    handle.addEventListener('mousedown', (e) => {
+        isDragging = true;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            const sliderRect = slider.getBoundingClientRect();
+            const y = e.clientY - sliderRect.top;
+            const maxY = slider.offsetHeight - handle.offsetHeight;
+            const newY = Math.max(0, Math.min(y, maxY));
+            handle.style.top = `${newY}px`;
+            
+            const percentage = newY / maxY;
+            let filteredPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
+            const index = Math.floor(percentage * filteredPosts.length);
+            filteredPosts = filteredPosts.slice(index);
+            
+            if (filteredPosts.length > 0) {
+                const year = filteredPosts[0].date.split('-')[0];
+                updateYearTitle(year);
+            }
+            
+            updatePosts(filteredPosts);
+
+            const activeDate = filteredPosts[0]?.date;
+            document.querySelectorAll('.timeline-date').forEach(el => {
+                el.classList.toggle('active', el.dataset.date === activeDate);
+            });
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    // 初始化
+    loadPosts();
+</script>
 </body>
 </html>
