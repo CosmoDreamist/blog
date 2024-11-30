@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog Template</title>
-    <!-- 添加 marked.js 用于解析 Markdown -->
+    <title>Cosmo Dreamist</title>
+    <!-- 添加必要的脚本 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- 添加 yaml.js 用于解析文章元数据 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <style>
-        /* CSS 样式保持不变 */
         body {
             font-family: "Microsoft YaHei", sans-serif;
             margin: 0;
@@ -19,6 +17,273 @@
             box-sizing: border-box;
         }
 
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 20px;
+            height: 100%;
+        }
+
+        .left-sidebar {
+            width: 150px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            height: calc(100vh - 40px);
+            position: sticky;
+            top: 20px;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .timeline-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .timeline-slider {
+            position: relative;
+            height: 100%;
+            width: 4px;
+            background-color: #eee;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .timeline-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: #666;
+            border-radius: 50%;
+            left: -6px;
+            top: 0;
+            cursor: pointer;
+        }
+
+        .timeline-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            height: 100%;
+        }
+
+        .timeline-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .right-sidebar {
+            width: 200px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            height: calc(100vh - 40px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .site-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .motto {
+            color: #666;
+            margin: 10px 0 30px 0;
+        }
+
+        .nav {
+            text-align: right;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .nav a {
+            margin-left: 20px;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .recent-posts {
+            flex-grow: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #posts-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+
+        #posts-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #posts-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        #posts-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        #posts-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .post-item {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .post-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .post-date {
+            color: #666;
+            width: 120px;
+        }
+
+        .post-title {
+            flex-grow: 1;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .post-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            margin-left: 10px;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            color: #666;
+            font-size: 12px;
+            font-weight: normal;
+        }
+
+        .tag-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+
+        .tag-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .tag-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .tag-list::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .tag-list::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .tag-list li {
+            margin-bottom: 10px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .tag-list li:hover {
+            background-color: #f0f0f0;
+        }
+
+        .tag-list li.active {
+            background-color: #e0e0e0;
+        }
+
+        .timeline-year {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+
+        .timeline-month {
+            margin-left: 15px;
+            margin-bottom: 4px;
+            color: #666;
+        }
+
+        .timeline-date {
+            margin-left: 30px;
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            padding: 1px 0;
+            line-height: 1.2;
+        }
+
+        .timeline-date:hover {
+            color: #333;
+        }
+
+        .timeline-date.active {
+            color: #000;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .left-sidebar, .right-sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+            }
+        }
     </style>
 </head>
 <body>
@@ -36,11 +301,11 @@
 
         <main class="main-content">
             <header class="header">
-                <h1 class="site-title">Blog Template</h1>
+                <h1 class="site-title">Cosmo Dreamist</h1>
             </header>
 
             <div class="motto">
-                学习与生活。
+               学习与生活。
             </div>
 
             <nav class="nav">
@@ -62,6 +327,7 @@
             </ul>
         </aside>
     </div>
+
     <script>
         let posts = [];
         let currentTag = null;
@@ -76,8 +342,8 @@
         // 从GitHub加载文章列表
         async function loadPosts() {
             try {
-                const owner = 'CosmoDreamist'; 
-                const repo = 'blog';       
+                const owner = 'CosmoDreamist';
+                const repo = 'blog';
                 const path = 'posts';
 
                 const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
@@ -104,11 +370,13 @@
                 updateTagList();
                 
                 // 初始化显示
-                const initialYear = posts[0]?.date.split('-')[0];
-                updateYearTitle(initialYear);
-                updatePosts();
-                updateTimeline();
-                addScrollListener();
+                if (posts.length > 0) {
+                    const initialYear = posts[0].date.split('-')[0];
+                    updateYearTitle(initialYear);
+                    updatePosts();
+                    updateTimeline();
+                    addScrollListener();
+                }
 
             } catch (error) {
                 console.error('Error loading posts:', error);
@@ -160,7 +428,7 @@
             });
         }
 
-        // 其他函数保持不变，只需修改updatePosts中的文章点击事件
+        // 其他函数保持不变
         function updatePosts(filteredPosts = posts) {
             if (currentTag) {
                 filteredPosts = filteredPosts.filter(post => post.tags.includes(currentTag));
@@ -201,7 +469,6 @@
                         const content = contentParts.join('---');
                         
                         // 这里可以添加显示文章内容的逻辑
-                        // 例如：打开一个模态框显示文章
                         console.log('Article content:', marked.parse(content));
                     } catch (error) {
                         console.error('Error loading article:', error);
@@ -210,15 +477,124 @@
             });
         }
 
-        // 保持其他所有函数不变
-        function updateYearTitle(year) { /* ... */ }
-        function updateTimeline() { /* ... */ }
-        function addScrollListener() { /* ... */ }
+        function updateYearTitle(year) {
+            const yearTitle = document.getElementById('year-title');
+            if (currentYear !== year) {
+                currentYear = year;
+                yearTitle.textContent = year;
+            }
+        }
 
-        // 初始化
-        loadPosts();
+        function updateTimeline() {
+            const timeline = document.getElementById('timeline');
+            let filteredPosts = posts;
+            if (currentTag) {
+                filteredPosts = posts.filter(post => post.tags.includes(currentTag));
+            }
 
-        // 滑块相关代码保持不变
+            const dateGroups = filteredPosts.reduce((groups, post) => {
+                const [year, month, day] = post.date.split('-');
+                if (!groups[year]) groups[year] = {};
+                if (!groups[year][month]) groups[year][month] = [];
+                groups[year][month].push(day);
+                return groups;
+            }, {});
+
+            const timelineHTML = Object.entries(dateGroups)
+                .sort(([a], [b]) => b.localeCompare(a))
+                .map(([year, months]) => `
+                    <div class="timeline-year">
+                        ${year}
+                        ${Object.entries(months)
+                            .sort(([a], [b]) => b.localeCompare(a))
+                            .map(([month, days]) => `
+                                <div class="timeline-month">
+                                    ${monthNames[month]}
+                                    ${days
+                                        .sort((a, b) => b.localeCompare(a))
+                                        .map(day => `
+                                            <div class="timeline-date" data-date="${year}-${month}-${day}">
+                                                ${day}
+                                            </div>
+                                        `).join('')}
+                                </div>
+                            `).join('')}
+                    </div>
+                `).join('');
+
+            timeline.innerHTML = timelineHTML;
+
+            document.querySelectorAll('.timeline-date').forEach(dateEl => {
+                dateEl.addEventListener('click', () => {
+                    const selectedDate = dateEl.dataset.date;
+                    const selectedYear = selectedDate.split('-')[0];
+                    
+                    let filteredPosts = posts.filter(post => post.date <= selectedDate);
+                    if (currentTag) {
+                        filteredPosts = filteredPosts.filter(post => post.tags.includes(currentTag));
+                    }
+                    
+                    updatePosts(filteredPosts);
+                    updateYearTitle(selectedYear);
+                    
+                    document.querySelectorAll('.timeline-date').forEach(el => {
+                        el.classList.remove('active');
+                    });
+                    dateEl.classList.add('active');
+
+                    const allPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
+                    const index = allPosts.findIndex(post => post.date === selectedDate);
+                    const maxY = slider.offsetHeight - handle.offsetHeight;
+                    const newY = (index / allPosts.length) * maxY;
+                    handle.style.top = `${newY}px`;
+                });
+            });
+        }
+
+        function addScrollListener() {
+            const postsContainer = document.getElementById('posts-container');
+            let scrollTimeout;
+
+            postsContainer.addEventListener('scroll', () => {
+                if (scrollTimeout) {
+                    clearTimeout(scrollTimeout);
+                }
+
+                scrollTimeout = setTimeout(() => {
+                    const postItems = postsContainer.querySelectorAll('.post-item');
+                    const containerRect = postsContainer.getBoundingClientRect();
+                    
+                    let closestPost = null;
+                    let minDistance = Infinity;
+                    
+                    postItems.forEach(post => {
+                        const rect = post.getBoundingClientRect();
+                        const distance = Math.abs(rect.top - containerRect.top);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestPost = post;
+                        }
+                    });
+
+                    if (closestPost) {
+                        const date = closestPost.dataset.date;
+                        const year = date.split('-')[0];
+                        updateYearTitle(year);
+
+                        document.querySelectorAll('.timeline-date').forEach(el => {
+                            el.classList.toggle('active', el.dataset.date === date);
+                        });
+
+                        const allPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
+                        const index = allPosts.findIndex(post => post.date === date);
+                        const maxY = slider.offsetHeight - handle.offsetHeight;
+                        const newY = (index / allPosts.length) * maxY;
+                        handle.style.top = `${newY}px`;
+                    }
+                }, 100);
+            });
+        }
+
         const handle = document.getElementById('timelineHandle');
         const slider = document.querySelector('.timeline-slider');
         let isDragging = false;
@@ -227,8 +603,39 @@
             isDragging = true;
         });
 
-        // ... 其他事件监听器保持不变 ...
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const sliderRect = slider.getBoundingClientRect();
+                const y = e.clientY - sliderRect.top;
+                const maxY = slider.offsetHeight - handle.offsetHeight;
+                const newY = Math.max(0, Math.min(y, maxY));
+                handle.style.top = `${newY}px`;
+                
+                const percentage = newY / maxY;
+                let filteredPosts = currentTag ? posts.filter(post => post.tags.includes(currentTag)) : posts;
+                const index = Math.floor(percentage * filteredPosts.length);
+                filteredPosts = filteredPosts.slice(index);
+                
+                if (filteredPosts.length > 0) {
+                    const year = filteredPosts[0].date.split('-')[0];
+                    updateYearTitle(year);
+                }
+                
+                updatePosts(filteredPosts);
 
+                const activeDate = filteredPosts[0]?.date;
+                document.querySelectorAll('.timeline-date').forEach(el => {
+                    el.classList.toggle('active', el.dataset.date === activeDate);
+                });
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // 初始化
+        loadPosts();
     </script>
 </body>
 </html>
